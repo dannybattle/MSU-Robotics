@@ -1,0 +1,432 @@
+.PROGRAM sdrobot()
+
+;Locations used in the program:
+;Home17
+;Abovepickup17, pickup17, Abovehdrill17, hdrill17
+;Abovestack17, Abovercstack17, aboverostack17, abovearstack17
+;Rcstack17, rostack17, arstack17
+;Abovedrillbef17, abovedrillaft17, Drillbef17, drillaft17
+;Aboveoverflow17, overflow17, Aboveunstack17, unstack17
+
+;Create Necessary Variables:
+rccount = 0			;red cedar
+rocount = 0			;red oak
+arcount = 0			;acrylic
+alcount = 0			;aluminum (defective)
+total = 0			;total number of blocks processed
+
+;Program Precaution:
+;Safety check (20-73)
+SIGNAL 25					;operation attention light on
+PRINT "Is the external speed set correctly?"
+WAIT SIG(1011)				;yes button
+SIGNAL -25	
+TWAIT 0.5
+SIGNAL 25
+PRINT "IS the air on?"
+WAIT SIG(1011)
+SIGNAL -25
+TWAIT 0.5
+SIGNAL 25
+PRINT "IS the hydraulic pump on?"
+WAIT SIG(1011)
+SIGNAL -25
+TWAIT 0.5
+SIGNAL 25
+PRINT "Are the fans for the hydraulic pump on?"
+WAIT SIG(1011)
+SIGNAL -25
+TWAIT 0.5
+SIGNAL 25
+PRINT "IS the work cell clean?"
+WAIT SIG(1011)
+SIGNAL -25
+TWAIT 0.5
+SIGNAL 25
+PRINT "Are the drills retracted?"	;!could add retraction command ahead
+WAIT SIG(1011)
+SIGNAL -25
+TWAIT 0.5
+SIGNAL 25
+PRINT "Are the clamps retracted?"
+WAIT SIG(1011)
+SIGNAL -25
+TWAIT 0.5
+SIGNAL 25
+PRINT "Are the clamps empty?"
+WAIT SIG(1011)
+SIGNAL -25
+TWAIT 0.5
+SIGNAL 25
+PRINT "Are the pallets empty?"		;!for precaution. Will be removed afterwards
+WAIT SIG(1011)
+SIGNAL -25
+TWAIT 0.5
+SIGNAL 25
+PRINT "IS the conveyor empty?"
+WAIT SIG(1011)
+SIGNAL -25
+TWAIT 0.5
+SIGNAL 25
+PRINT "Are there parts in the hopper?"
+WAIT SIG(1011)
+SIGNAL -25
+
+;Main Program:
+
+;Block Feeding:
+WHILE total<15 DO				;process block (78-375)
+	IF NOT SIG(1023) THEN		;check pallet photo eye signal (79-82) 
+		PRINT "Clean the pallet and type CONTINUE!"
+		PAUSE
+	END							;belongs to line 78
+	JMOVE home17				;reset the position of robot arm
+	SIGNAL 7					;Conveyor motor on
+	WAIT SIG(1003)				;!hopper photo eye. Will be on if no block presents?
+	TWAIT 2
+	SIGNAL 18					;pneumatic hopper feeding cylinder retract SOL-1 energized
+	WAIT SIG(1004)				;wait for fully retracted 5-LS
+	TWAIT 0.5
+	SIGNAL -18					;pneumatic hopper feeding cylinder extend SOL-1 de-energized
+	WAIT SIG(1019) OR SIG(1020) OR SIG(1021);Check if a part is present, or relationship
+
+;Red Cedar (Hydraulic):
+	IF SIG(-1019,1020,-1021) THEN		;Check for red cedar signal(94-165), and relationship
+		IF rccount <5 THEN				;(95-164)
+			SIGNAL 2,-3,5		;hydraulic clamp, feed cylinder retract, motor off
+			WAIT SIG(1012,1014)	;hydraulic clamp, feed cylinder retracted 10-LS, 12-LS
+			TWAIT 1
+			SIGNAL -2,-5		
+			rccount = rccount + 1
+			PRINT "Red Cedar Block # ", rccount
+			total = total +1
+			JMOVE abovepickup17
+			SPEED 10		;set speed to 10
+			LMOVE pickup17
+			CLOSEI			;pick up the block
+			TWAIT 1
+			LDEPART 100		;!check for depart distance
+			JMOVE abovehdrill17
+			SPEED 10
+			LMOVE hdrill17
+			OPENI	
+			TWAIT 1
+			LDEPART 100
+;hydraulic first drilling:
+			SIGNAL 6		;hydraulic vaccum cleaner1 on
+			SIGNAL 1		;hydraulic Clamp extend SOL-A energized
+			WAIT SIG(1013)		;hydraulic clamp extended 11-LS
+			TWAIT 1
+			SIGNAL -1		;clamp de-energized
+			SIGNAL 3		;hydraulic drill motor SOL-c energized
+			TWAIT 2
+			SIGNAL 4		;hydraulic feed drill extend SOL-D energized
+			TWAIT 1.75
+			SIGNAL -4		;SOL-D de-energized
+			TWAIT 0.5
+			SIGNAL 5		;hydraulic feed drill retract SOL-E energized
+			WAIT SIG(1014)		;hydraulic drill feeder retracted 12-LS
+			SIGNAL -5		;SOL-E de-energized
+			TWAIT 0.5
+;hydraulic second drilling: 
+			SIGNAL 4		;hydraulic feed drill extend SOL-D energized
+			WAIT SIG(1015)		;hydraulic rill feeder extended 13-LS
+			SIGNAL -4		;SOL-D de-energized
+			TWAIT 0.5
+			SIGNAL 5		;hydraulic feed drill retract SOL-E energized
+			WAIT SIG(1014)		;hydraulic drill feeder retracted 12-LS
+			SIGNAL -5		;SOL-E de-energized
+			SIGNAL -3		;hydraulic drill motor SOL-C de-energized
+			TWAIT 2
+			SIGNAL 2		;hydraulic clamp retract SOL-B energized
+			WAIT SIG(1012)		;hydraulic clamp retracted 10-LS
+			TWAIT 1
+			SIGNAL -2,-6		;SOL-B de-energized, hydraulic vaccum cleaner off
+			SPEED 10
+			LMOVE hdrill17
+			CLOSEI
+			TWAIT 1
+			LDEPART 100
+;Red Cedar Stacking:
+			PRINT "Red Cedar Row # ", rccount
+			JMOVE abovestack17
+			JMOVE abovercstack17	:above initial positon 
+			POINT rcshift = rcstack	;set initial position for red cedar
+			redcedarstack = rccount-1
+			POINT rcshift = SHIFT(rcstack BY 0,0,57.15*(redcedarstack))	;get location to stack
+			SPEED 10
+			JMOVE rcshift
+			OPENI
+			TWAIT 1
+			LDEPART 100
+			JMOVE abovestack17
+			JMOVE abovepickup17
+		END					;belongs to line 95
+	END						;belongs to line 94
+
+;Red Oak (Pneumatic):
+	IF SIG(-1019,-1020,1021) THEN		;check for red oak signal (168-248)
+		IF rocount<5 THEN				;(169-247)
+			;normal, center drill motor off, feed cylinder retracted,
+			;rotary actuator at default position, clamp retracted
+			SIGNAL -16,-17,-20,-21,-15,-24	
+			WAIT SIG(10XX,1018,1022,1008)	;10XX represents the pneumatic clamp retracted
+			WAIT 1		
+			SIGNAL 13		;swivel door open
+			WAIT SIG(1006)		;wait for door opened
+			WAIT 1
+			SIGNAL -13
+			rocount = rocount + 1
+			PRINT "Red Oak Block # ", rocount
+			total = total +1
+			JMOVE abovepickup17
+			SPEED 10		;set speed to 10
+			LMOVE pickup17
+			CLOSEI			;pick up the block
+			TWAIT 1
+			LDEPART 100		;!check for depart distance
+			JMOVE abovedrillbef17
+			SPEED 10
+			LMove drillbef
+			OPENI	
+			TWAIT 1
+			LDEPART 100
+			SIGNAL 14		;swivel door close
+			WAIT SIG(1007)		;wait for door closed
+			WAIT 1
+			SIGNAL -14
+;Pneumatic Center Drill:
+			SIGNAL 20		;pneumatic Clamp extend
+			TWAIT 5			;!check for actual operation time
+			SIGNAL 17,8		;center drill motor, vaccum cleaner2 on
+			TWAIT 3			;wait for motor to get full speed
+			SIGNAL 7		;center drill feed cylinder extend
+			TWAIT 5			;!check for actual operation time
+			SIGNAL -7
+			WAIT SIG(1008)		;wait for cylinder retracted
+			TWAIT 1
+			SIGNAL -17		;pneumatic center drill motor off
+			SIGNAL -20		;clamp retract
+			WAIT SIG(10XX)		;wait for clamp retracted
+			TWAIT 1
+			SIGNAL 21		;limited rotary actuator rotate 180 degree
+			WAIT SIG(1009)		;wait for the rotation
+			TWAIT 1
+;Pneumatic Normal Drill:
+			SIGNAL 20		;pneumatic Clamp extend
+			TWAIT 5			;!check for actual operation time
+			SIGNAL 16		;pneumatic normal drill motor on
+			TWAIT 3			;wait for motor to get full speed
+			SIGNAL 15		;normal drill feed cylinder extend
+			TWAIT 5			;!check for actual operation time
+			SIGNAL -15
+			WAIT SIG(1022)		;wait for cylinder retracted
+			TWAIT 1
+			SIGNAL -16,-8		;pneumatic normal drill motor, vaccum cleaner2 off
+			SIGNAL -20		;clamp retract
+			WAIT SIG(10XX)		;wait for clamp retracted
+			TWAIT 1
+			SIGNAL 13		;swivel door open
+			WAIT SIG(1006)		;wait for door opened
+			WAIT 1
+			SIGNAL -13	
+;Red Oak Stacking:
+			PRINT "Red Oak Row # ", rocount
+			JMOVE abovestack17
+			JMOVE aboverostack17	:above initial positon 
+			POINT roshift = rostack	;set initial position for red cedar
+			redoakstack = rocount-1
+			POINT roshift = SHIFT(rostack BY 0,0,57.15*(redoakstack))	;get location to stack
+			SPEED 10
+			JMOVE roshift
+			OPENI
+			TWAIT 1
+			LDEPART 100
+			JMOVE abovestack17
+			JMOVE abovepickup17
+		END			;belongs to line 169
+	END				;belongs to line 168
+
+;Acrylic (Pneumatic):
+	IF SIG(1019,-1020,-1021) THEN		;check for acrylic signal(251-331)
+		IF arcount<5 THEN				;(252-330)
+			;normal, center drill motor off, feed cylinder retracted,
+			;rotary actuator at default position, clamp retracted
+			SIGNAL -16,-17,-20,-21,-15,-24	
+			WAIT SIG(10XX,1018,1022,1008)
+			WAIT 1		
+			SIGNAL 13		;swivel door open
+			WAIT SIG(1006)		;wait for door opened
+			WAIT 1
+			SIGNAL -13
+			arcount = arcount + 1
+			PRINT "Acrylic Block # ", arcount
+			total = total +1
+			JMOVE abovepickup17
+			SPEED 10		;set speed to 10
+			LMOVE pickup17
+			CLOSEI			;pick up the block
+			TWAIT 1
+			LDEPART 100		;!check for depart distance
+			JMOVE abovedrillbef17
+			SPEED 10
+			LMove drillbef
+			OPENI	
+			TWAIT 1
+			LDEPART 100
+			SIGNAL 14		;swivel door close
+			WAIT SIG(1007)		;wait for door closed
+			WAIT 1
+			SIGNAL -14
+;Pneumatic Center Drill:
+			SIGNAL 20		;pneumatic Clamp extend
+			TWAIT 5			;!check for actual operation time
+			SIGNAL 17,8		;center drill motor, vaccum cleaner2 on
+			TWAIT 3			;wait for motor to get full speed
+			SIGNAL 7		;center drill feed cylinder extend
+			TWAIT 5			;!check for actual operation time
+			SIGNAL -7
+			WAIT SIG(1008)		;wait for cylinder retracted
+			TWAIT 1
+			SIGNAL -17		;pneumatic center drill motor off
+			SIGNAL -20		;clamp retract
+			WAIT SIG(10XX)		;wait for clamp retracted
+			TWAIT 1
+			SIGNAL 21		;limited rotary actuator rotate 180 degree
+			WAIT SIG(1009)		;wait for the rotation
+			TWAIT 1
+;Pneumatic Normal Drill:
+			SIGNAL 20		;pneumatic Clamp extend
+			TWAIT 5			;!check for actual operation time
+			SIGNAL 16		;pneumatic normal drill motor on
+			TWAIT 3			;wait for motor to get full speed
+			SIGNAL 15		;normal drill feed cylinder extend
+			TWAIT 5			;!check for actual operation time
+			SIGNAL -15
+			WAIT SIG(1022)		;wait for cylinder retracted
+			TWAIT 1
+			SIGNAL -16,-8		;pneumatic normal drill motor, vaccum cleaner2 off
+			SIGNAL -20		;clamp retract
+			WAIT SIG(10XX)		;wait for clamp retracted
+			TWAIT 1
+			SIGNAL 13		;swivel door open
+			WAIT SIG(1006)		;wait for door opened
+			WAIT 1
+			SIGNAL -13	
+;Acrylic Stacking:
+			PRINT "Acrylic Row # ", arcount
+			JMOVE abovestack17
+			JMOVE abovearstack17	:above initial positon 
+			POINT arshift = arstack	;set initial position for red cedar
+			acrylicstack = arcount-1
+			POINT arshift = SHIFT(arstack BY 0,0,57.15*(acrylicstack))	;get location to stack
+			SPEED 10
+			JMOVE arshift
+			OPENI
+			TWAIT 1
+			LDEPART 100
+			JMOVE abovestack17
+			JMOVE abovepickup17
+		END			;belongs to line 252
+	END				;belongs to line 251	
+
+;Aluminum (Defective):
+	IF SIG(-1019,1020,1021) THEN	;Check for aluminum signal,(334-351)
+		TWAIT 1
+		alcount = alcount + 1
+		PRINT "Aluminum Block # ", alcount
+		JMOVE abovepickup17
+		SPEED 10		;set speed to 10
+		LMOVE pickup17
+		CLOSEI			;pick up the block
+		TWAIT 1
+		LDEPART 100		;!check for depart distance
+		JMOVE aboveoverflow17	;defective disposal
+		SPEED 10
+		LMOVE overflow17
+		OPENI	
+		TWAIT 1
+		LDEPART 100
+		JMOVE abovepickup17		;belongs to line 334
+	END
+
+;Overflow:
+	IF NOT SIG(-1019,-1020,-1021) THEN	;if a part is present,(354-374)
+		IF total >= 15 THEN			;(355-373)
+			JMOVE abovepickup17
+			SPEED 10
+			JMOVE pickup17
+			CLOSEI
+			TWAIT 1
+			SPEED 10
+			JMOVE abovepickup17
+			JMOVE aboveoverflow17	;defective disposal
+			SPEED 10
+			JMOVE overflow17
+			OPENI
+			TWAIT 1
+			JMOVE home17
+		END			;belongs to line 355
+	END				;belongs to line 354
+END
+:Unstacking:
+SIGNAL 25
+PRINT "DO you want to unstack?"
+WAIT SIG(1011)
+SIGNAL -25
+WHILE total >0 DO			;(377-425)
+	JMOVE abovestack17		;go to the stacking area
+	JMOVE abovercstack17
+	POINT rcshift = SHIFT(rcstack BY 0,0,57.15*(redcedarstack))
+	LMOVE rcshift			;go to the red cedar stacking area
+	CLOSEI
+	TWAIT 1
+	LDEPART 100
+	JMOVE aboveunstack17
+	SPEED 10
+	LMOVE unstack17
+	OPENI					;release the block 
+	TWAIT 1
+	LMOVE
+	LMOVE aboveunstack17
+	JMOVE abovestack17
+	JMOVE aboverostack17
+	POINT roshift = SHIFT(rostack BY 0,0,57.15*(redoakstack))
+	SPEED 10
+	LMOVE roshift			;go to the red oak stacking area
+	CLOSEI
+	TWAIT 1
+	SPEED 10
+	LDEPART 100
+	JMOVE aboveunstack17
+	SPEED 10
+	LMOVE unstack17
+	OPENI
+	TWAIT 1
+	LMOVE aboveunstack17
+	JMOVE abovestack17
+	JMOVE abovearstack17
+	POINT arshift = SHIFT(arstack BY 0,0,57.15*(acrylicstack))
+	SPEED 10
+	LMOVE arshift			;go to the acrylic stacking area
+	CLOSEI
+	TWAIT 1
+	SPEED 10
+	LDEPART 100
+	JMOVE aboveunstack17
+	SPEED 10
+	LMOVE unstack17
+	OPENI
+	TWAIT 1
+	redcedarstack = redcedarstack-1
+	redoakstack = redoakstack-1
+	acrylicstack = acrylicstack-1
+	total = total-3
+END				;belongs to line 377
+JMOVE home17
+SIGNAL 25
+PRINT "PUSH THE YES BUTTON TO STOP THE PROGRAM"
+WAIT SIG(1011)
+SIGNAL -25
+PRINT "turn air, pump and fans OFF"
+.END
