@@ -26,7 +26,7 @@ def gradient_descent_runner(points, starting_b, starting_m, learning_rate):
     b = starting_b
     m = starting_m
     a=compute_error_for_line_given_points(b, m, points)
-    while(a > 5):
+    while(a > 6):
         b, m = stepGradient(b, m, points, learning_rate)
         a=compute_error_for_line_given_points(b, m, points)
         print(a, m, b)
