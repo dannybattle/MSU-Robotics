@@ -1,3 +1,4 @@
+```python
 from numpy import *
 
 def compute_error_for_line_given_points(b, m, points):
@@ -36,3 +37,4 @@ num_iterations = 3000
 b,m = gradient_descent_runner(points, initial_b, initial_m, learning_rate, num_iterations)
 
 print(b,m)
+```
